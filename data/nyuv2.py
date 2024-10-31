@@ -1,11 +1,10 @@
-import os
-import h5py
-import torch
-import numpy as np
-from PIL import Image
+# Cell 2: Updated NYUDepthV2 Dataset class
 from torch.utils.data import Dataset
-from torchvision.datasets.utils import download_url
-
+import os
+import torch
+import h5py
+from PIL import Image
+import numpy as np
 
 class NYUDepthV2(Dataset):
     """
@@ -44,47 +43,73 @@ class NYUDepthV2(Dataset):
         if not os.path.exists(self.mat_file):
             raise RuntimeError(f"Dataset not found at {self.mat_file}. Use download=True to download it.")
 
-        self.data = h5py.File(self.mat_file, 'r')
-        self.images = self.data['images']
-        self.segments = self.data['labels']
-        self.depths = self.data['depths']
+        # Defer loading of the .mat file until after the worker process is initialized
+        self.data = None
+        self.images = None
+        self.segments = None
+        self.depths = None
+
+    def _load_data(self):
+        if self.data is None:
+            self.data = h5py.File(self.mat_file, 'r')
+            self.images = self.data['images']
+            self.segments = self.data['labels']
+            self.depths = self.data['depths']
 
     def __len__(self):
+        self._load_data()
         return self.images.shape[0]
 
     def __getitem__(self, index):
+        self._load_data()
         img = self.images[index].transpose(1, 2, 0)
         seg = self.segments[index]
         depth = self.depths[index]
-        
-        # remove singleton dimension
+
+        # Convert to numpy arrays
+        img = np.array(img)
+        seg = np.array(seg)
+        depth = np.array(depth)
+
+        # Remove singleton dimension
         if seg.ndim == 3 and seg.shape[0] == 1:
             seg = seg.squeeze(0)
         if depth.ndim == 3 and depth.shape[0] == 1:
             depth = depth.squeeze(0)
 
+        # Convert image to PIL Image and apply transformations
+        img = Image.fromarray(img)
+        img = img.rotate(-90)
         if self.image_transform is not None:
-            img = Image.fromarray(img)
-            img = img.rotate(-90)
             img = self.image_transform(img)
-            if isinstance(img, torch.Tensor):
-                img = img.permute(1, 2, 0)
 
+        # Apply transformations to segmentation and depth if needed
         if self.seg_transform is not None:
             seg = Image.fromarray(seg.astype(np.uint8))
             seg = seg.rotate(-90)
             seg = self.seg_transform(seg)
-            if isinstance(seg, torch.Tensor):
-                seg = seg.squeeze()
 
         if self.depth_transform is not None:
             depth = Image.fromarray(depth)
             depth = depth.rotate(-90)
             depth = self.depth_transform(depth)
-            if isinstance(depth, torch.Tensor):
-                depth = depth.squeeze()
 
         return img, seg, depth
+
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Remove unpickleable entries
+        state['data'] = None
+        state['images'] = None
+        state['segments'] = None
+        state['depths'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Reopen the file in the new process
+        self._load_data()
 
     def download(self):
         """
