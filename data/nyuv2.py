@@ -1,5 +1,6 @@
 # Cell 2: Updated NYUDepthV2 Dataset class
 from torch.utils.data import Dataset
+from torchvision.datasets.utils import download_url
 import os
 import torch
 import h5py
