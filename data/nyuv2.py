@@ -21,7 +21,7 @@ class NYUDepthV2(Dataset):
 
     BASE_URL = "http://horatio.cs.nyu.edu/mit/silberman/nyu_depth_v2/nyu_depth_v2_labeled.mat"
 
-    def __init__(self, root, download=False, image_transform=None, seg_transform=None, depth_transform=None, instance_transform=None):
+    def __init__(self, root, download=False, preload=False, image_transform=None, seg_transform=None, depth_transform=None, n_classes=894):
         """
         Initialize the dataset and optionally download the dataset if not found locally.
 
@@ -37,22 +37,25 @@ class NYUDepthV2(Dataset):
         self.image_transform = image_transform
         self.seg_transform = seg_transform
         self.depth_transform = depth_transform
-        self.instance_transform = instance_transform
+        self.preload = preload
 
         self.mat_file = os.path.join(root, "nyu_depth_v2_labeled.mat")
-
         if download:
             self.download()
 
         if not os.path.exists(self.mat_file):
             raise RuntimeError(f"Dataset not found at {self.mat_file}. Use download=True to download it.")
 
-        # Defer loading of the .mat file until after the worker process is initialized
         self.data = None
         self.images = None
         self.segments = None
         self.depths = None
-        self.instances = None
+        self.names = None
+        
+        self.n_classes = n_classes
+
+        if preload:
+            self._load_data()
 
     def _load_data(self):
         if self.data is None:
@@ -60,7 +63,10 @@ class NYUDepthV2(Dataset):
             self.images = self.data['images']
             self.segments = self.data['labels']
             self.depths = self.data['depths']
-            # self.instances = self.data['instances']
+            self.names = self.data['names']
+
+            # Resolve names dataset into a list of strings
+            self.resolved_names = unpack_names(self.data, self.names)
 
     def __len__(self):
         self._load_data()
@@ -68,41 +74,53 @@ class NYUDepthV2(Dataset):
 
     def __getitem__(self, index):
         self._load_data()
+        
+        # Load raw data
         img = self.images[index].transpose()
         seg = self.segments[index].transpose()
         depth = self.depths[index].transpose()
-        #instances = self.instances[index].transpose()
 
         # Convert to numpy arrays
         img = np.array(img)
         seg = np.array(seg)
         depth = np.array(depth)
-        #instances = np.array(instances)
-
-        # Remove singleton dimension
+        
+        # Remove singleton dimensions
         if seg.ndim == 3 and seg.shape[0] == 1:
             seg = seg.squeeze(0)
         if depth.ndim == 3 and depth.shape[0] == 1:
             depth = depth.squeeze(0)
 
-        # Convert image to PIL Image and apply transformations
+        # Convert raw arrays to PIL images
         img = Image.fromarray(img)
+        seg = Image.fromarray(seg.astype(np.uint8))
+        depth = Image.fromarray(depth)
+
+        # Apply transformations
         if self.image_transform is not None:
             img = self.image_transform(img)
-
-        # Apply transformations to segmentation and depth if needed
         if self.seg_transform is not None:
-            seg = Image.fromarray(seg.astype(np.uint8))
             seg = self.seg_transform(seg)
-
         if self.depth_transform is not None:
-            depth = Image.fromarray(depth)
             depth = self.depth_transform(depth)
-            
-        # instance_masks = get_instance_masks(instances)
-        # instance_masks = [torch.tensor(mask) for mask in instance_masks]  # Convert to PyTorch tensors
 
-        return img, seg, depth
+        # Convert transformed segmentation and depth maps back to numpy arrays
+        seg = np.array(seg)  # Ensure segmentation is in a numpy format after transformations
+        depth = np.array(depth)
+
+        # Extract class presence vector
+        unique_classes = np.unique(seg)
+        class_vector = np.zeros(self.n_classes, dtype=np.float32)  # Assume 40 classes
+        class_vector[unique_classes] = 1
+
+        # Compute depth vector
+        depth_vector = np.zeros(self.n_classes, dtype=np.float32)
+        for cls in unique_classes:
+            class_mask = (seg == cls)
+            if class_mask.sum() > 0:
+                depth_vector[cls] = depth[class_mask].mean()
+
+        return img, seg, depth, class_vector, depth_vector
 
 
     def __getstate__(self):
@@ -112,7 +130,7 @@ class NYUDepthV2(Dataset):
         state['images'] = None
         state['segments'] = None
         state['depths'] = None
-        #state['instances'] = None
+        
         return state
 
     def __setstate__(self, state):
@@ -135,36 +153,31 @@ class NYUDepthV2(Dataset):
             raise RuntimeError(f"Failed to download dataset. File not found at {self.mat_file}.")
 
         print("Download completed and dataset is ready for use.")
-
-def get_instance_masks(instances):
+        
+def unpack_names(file, names_dataset):
     """
-    Mimics the behavior of MATLAB's get_instance_masks.m to generate binary masks.
+    Unpack an HDF5 dataset of object references into a list of strings.
 
-    :param instances: HxWxN or HxW numpy array of instance maps from the dataset.
-    :return: List of binary masks, one for each object instance.
+    :param file: The parent HDF5 file (h5py.File object).
+    :param names_dataset: The HDF5 dataset containing object references.
+    :return: A list of resolved names as strings.
     """
-    if instances.ndim == 2:
-        # Convert HxW to HxWx1 for consistent processing
-        instances = np.expand_dims(instances, axis=-1)
+    resolved_names = []
 
-    H, W, N = instances.shape
-    instance_masks = []
+    # Access the first element, which is an array of object references
+    object_references = names_dataset[0]  # names_dataset has shape (1, 894)
 
-    # Iterate over the third dimension (N slices)
-    for i in range(N):
-        instance_slice = instances[:, :, i]
-        unique_ids = np.unique(instance_slice)
+    for ref in object_references:
+        # Dereference the HDF5 object
+        obj = file[ref]
 
-        # Skip if the slice has no valid IDs
-        if len(unique_ids) == 1 and unique_ids[0] == 0:
-            continue
+        # Decode the array of ASCII values into a string
+        ascii_array = obj[()]  # Get the numpy array of ASCII values
+        if isinstance(ascii_array, np.ndarray):
+            # Convert ASCII array to a string
+            resolved_names.append("".join(chr(c[0]) for c in ascii_array))
+        else:
+            # Handle other data types (unlikely)
+            resolved_names.append(str(ascii_array))
 
-        for obj_id in unique_ids:
-            if obj_id == 0:  # Ignore background
-                continue
-
-            # Create binary mask for this object ID
-            binary_mask = (instance_slice == obj_id).astype(np.uint8)
-            instance_masks.append(binary_mask)
-
-    return instance_masks
+    return np.array(resolved_names)
