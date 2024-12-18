@@ -75,7 +75,12 @@ class NYUDepthV2(Dataset):
     def __getitem__(self, index):
         self._load_data()
         
-        # Load raw data
+        # Handle slicing
+        if isinstance(index, slice):
+            indices = range(*index.indices(len(self)))
+            return [self[i] for i in indices]
+        
+        # Load raw data for a single index
         img = self.images[index].transpose()
         seg = self.segments[index].transpose()
         depth = self.depths[index].transpose()
@@ -93,7 +98,7 @@ class NYUDepthV2(Dataset):
 
         # Convert raw arrays to PIL images
         img = Image.fromarray(img)
-        seg = Image.fromarray(seg.astype(np.uint8))
+        seg = Image.fromarray(seg.astype(np.uint16))
         depth = Image.fromarray(depth)
 
         # Apply transformations
@@ -105,12 +110,13 @@ class NYUDepthV2(Dataset):
             depth = self.depth_transform(depth)
 
         # Convert transformed segmentation and depth maps back to numpy arrays
-        seg = np.array(seg)  # Ensure segmentation is in a numpy format after transformations
+        seg = np.array(seg)
         depth = np.array(depth)
 
         # Extract class presence vector
         unique_classes = np.unique(seg)
-        class_vector = np.zeros(self.n_classes, dtype=np.float32)  # Assume 40 classes
+        
+        class_vector = np.zeros(self.n_classes, dtype=np.float16)
         class_vector[unique_classes] = 1
 
         # Compute depth vector
@@ -121,7 +127,6 @@ class NYUDepthV2(Dataset):
                 depth_vector[cls] = depth[class_mask].mean()
 
         return img, seg, depth, class_vector, depth_vector
-
 
     def __getstate__(self):
         state = self.__dict__.copy()

@@ -2,5 +2,5 @@
 /data/*.mat
 __pycache__
 results/*.png
-models/*.pt
+models/*.pth
 wandb/*
