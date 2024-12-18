@@ -21,7 +21,7 @@ class NYUDepthV2(Dataset):
 
     BASE_URL = "http://horatio.cs.nyu.edu/mit/silberman/nyu_depth_v2/nyu_depth_v2_labeled.mat"
 
-    def __init__(self, root, download=False, preload=False, image_transform=None, seg_transform=None, depth_transform=None, n_classes=894):
+    def __init__(self, root, download=False, preload=False, image_transform=None, seg_transform=None, depth_transform=None, n_classes=894, filtered_classes=None):
         """
         Initialize the dataset and optionally download the dataset if not found locally.
 
@@ -38,6 +38,7 @@ class NYUDepthV2(Dataset):
         self.seg_transform = seg_transform
         self.depth_transform = depth_transform
         self.preload = preload
+        self.filtered_classes = filtered_classes
 
         self.mat_file = os.path.join(root, "nyu_depth_v2_labeled.mat")
         if download:
@@ -74,34 +75,30 @@ class NYUDepthV2(Dataset):
 
     def __getitem__(self, index):
         self._load_data()
-        
-        # Handle slicing
+
+        # Handle slicing explicitly
         if isinstance(index, slice):
             indices = range(*index.indices(len(self)))
             return [self[i] for i in indices]
-        
+
         # Load raw data for a single index
         img = self.images[index].transpose()
         seg = self.segments[index].transpose()
         depth = self.depths[index].transpose()
 
-        # Convert to numpy arrays
         img = np.array(img)
         seg = np.array(seg)
         depth = np.array(depth)
-        
-        # Remove singleton dimensions
+
         if seg.ndim == 3 and seg.shape[0] == 1:
             seg = seg.squeeze(0)
         if depth.ndim == 3 and depth.shape[0] == 1:
             depth = depth.squeeze(0)
 
-        # Convert raw arrays to PIL images
         img = Image.fromarray(img)
-        seg = Image.fromarray(seg.astype(np.uint16))
+        seg = Image.fromarray(seg.astype(np.uint32))
         depth = Image.fromarray(depth)
 
-        # Apply transformations
         if self.image_transform is not None:
             img = self.image_transform(img)
         if self.seg_transform is not None:
@@ -109,22 +106,37 @@ class NYUDepthV2(Dataset):
         if self.depth_transform is not None:
             depth = self.depth_transform(depth)
 
-        # Convert transformed segmentation and depth maps back to numpy arrays
         seg = np.array(seg)
         depth = np.array(depth)
 
-        # Extract class presence vector
+        # Extract unique classes, removing class 0
         unique_classes = np.unique(seg)
-        
-        class_vector = np.zeros(self.n_classes, dtype=np.float16)
-        class_vector[unique_classes] = 1
+        unique_classes = unique_classes[unique_classes > 0]  # Remove class 0
 
-        # Compute depth vector
-        depth_vector = np.zeros(self.n_classes, dtype=np.float32)
-        for cls in unique_classes:
-            class_mask = (seg == cls)
-            if class_mask.sum() > 0:
-                depth_vector[cls] = depth[class_mask].mean()
+        if self.filtered_classes is None:
+            # No filtering; use all possible classes excluding 0
+            shifted_classes = unique_classes - 1  # Shift indices to start at 0
+            class_vector = np.zeros(self.n_classes, dtype=np.float32)  # Exclude class 0
+            depth_vector = np.zeros(self.n_classes, dtype=np.float32)
+
+            for cls in unique_classes:
+                class_mask = (seg == cls)
+                shifted_cls = cls - 1  # Adjust class index to match the vector
+                class_vector[shifted_cls] = 1
+                if class_mask.sum() > 0:
+                    depth_vector[shifted_cls] = depth[class_mask].mean()
+        else:
+            # Filtered classes
+            filtered_indices = [cls for cls in unique_classes if cls in self.filtered_classes]
+            class_vector = np.zeros(len(self.filtered_classes), dtype=np.float32)
+            depth_vector = np.zeros(len(self.filtered_classes), dtype=np.float32)
+
+            for cls in filtered_indices:
+                class_mask = (seg == cls)
+                idx = self.filtered_classes.index(cls)  # Find position in filtered_classes
+                class_vector[idx] = 1
+                if class_mask.sum() > 0:
+                    depth_vector[idx] = depth[class_mask].mean()
 
         return img, seg, depth, class_vector, depth_vector
 
