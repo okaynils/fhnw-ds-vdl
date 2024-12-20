@@ -66,7 +66,6 @@ class NYUDepthV2(Dataset):
             self.depths = self.data['depths']
             self.names = self.data['names']
 
-            # Resolve names dataset into a list of strings
             self.resolved_names = unpack_names(self.data, self.names)
 
     def __len__(self):
@@ -76,12 +75,10 @@ class NYUDepthV2(Dataset):
     def __getitem__(self, index):
         self._load_data()
 
-        # Handle slicing explicitly
         if isinstance(index, slice):
             indices = range(*index.indices(len(self)))
             return [self[i] for i in indices]
 
-        # Load raw data for a single index
         img = self.images[index].transpose()
         seg = self.segments[index].transpose()
         depth = self.depths[index].transpose()
@@ -109,19 +106,17 @@ class NYUDepthV2(Dataset):
         seg = np.array(seg)
         depth = np.array(depth)
 
-        # Extract unique classes, removing class 0
         unique_classes = np.unique(seg)
-        unique_classes = unique_classes[unique_classes > 0]  # Remove class 0
+        unique_classes = unique_classes[unique_classes > 0]
 
         if self.filtered_classes is None:
-            # No filtering; use all possible classes excluding 0
-            shifted_classes = unique_classes - 1  # Shift indices to start at 0
-            class_vector = np.zeros(self.n_classes, dtype=np.float32)  # Exclude class 0
+            shifted_classes = unique_classes - 1
+            class_vector = np.zeros(self.n_classes, dtype=np.float32)
             depth_vector = np.zeros(self.n_classes, dtype=np.float32)
 
             for cls in unique_classes:
                 class_mask = (seg == cls)
-                shifted_cls = cls - 1  # Adjust class index to match the vector
+                shifted_cls = cls - 1
                 class_vector[shifted_cls] = 1
                 if class_mask.sum() > 0:
                     depth_vector[shifted_cls] = depth[class_mask].mean()
@@ -133,16 +128,16 @@ class NYUDepthV2(Dataset):
 
             for cls in filtered_indices:
                 class_mask = (seg == cls)
-                idx = self.filtered_classes.index(cls)  # Find position in filtered_classes
+                idx = self.filtered_classes.index(cls)
                 class_vector[idx] = 1
                 if class_mask.sum() > 0:
                     depth_vector[idx] = depth[class_mask].mean()
-
+        
         return img, seg, depth, class_vector, depth_vector
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        # Remove unpickleable entries
+        
         state['data'] = None
         state['images'] = None
         state['segments'] = None
@@ -152,7 +147,6 @@ class NYUDepthV2(Dataset):
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-        # Reopen the file in the new process
         self._load_data()
 
     def download(self):
@@ -181,20 +175,15 @@ def unpack_names(file, names_dataset):
     """
     resolved_names = []
 
-    # Access the first element, which is an array of object references
-    object_references = names_dataset[0]  # names_dataset has shape (1, 894)
+    object_references = names_dataset[0]
 
     for ref in object_references:
-        # Dereference the HDF5 object
         obj = file[ref]
 
-        # Decode the array of ASCII values into a string
-        ascii_array = obj[()]  # Get the numpy array of ASCII values
+        ascii_array = obj[()]
         if isinstance(ascii_array, np.ndarray):
-            # Convert ASCII array to a string
             resolved_names.append("".join(chr(c[0]) for c in ascii_array))
         else:
-            # Handle other data types (unlikely)
             resolved_names.append(str(ascii_array))
 
     return np.array(resolved_names)
