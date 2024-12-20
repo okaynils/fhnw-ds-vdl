@@ -66,7 +66,7 @@ class NYUDepthV2(Dataset):
             self.depths = self.data['depths']
             self.names = self.data['names']
 
-            self.resolved_names = unpack_names(self.data, self.names)
+            self.resolved_names = unpack_names(self.data, self.names, self.filtered_classes)
 
     def __len__(self):
         self._load_data()
@@ -165,7 +165,7 @@ class NYUDepthV2(Dataset):
 
         print("Download completed and dataset is ready for use.")
         
-def unpack_names(file, names_dataset):
+def unpack_names(file, names_dataset, filtered_classes=None):
     """
     Unpack an HDF5 dataset of object references into a list of strings.
 
@@ -186,4 +186,8 @@ def unpack_names(file, names_dataset):
         else:
             resolved_names.append(str(ascii_array))
 
+    if filtered_classes is not None:
+        # select resolved names based on filtered classes
+        resolved_names = [resolved_names[i-1] for i in filtered_classes]
+    
     return np.array(resolved_names)
