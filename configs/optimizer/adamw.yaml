@@ -1,0 +1,5 @@
+# configs/optimizer/adamw.yaml
+
+_target_: torch.optim.AdamW
+lr: 1e-5
+weight_decay: 0.0

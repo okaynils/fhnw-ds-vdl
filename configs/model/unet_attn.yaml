@@ -1,0 +1,5 @@
+# configs/model/unet_attn.yaml
+
+_target_: core.UNet_Attn
+num_classes: 18
+device: ${device}   # picks up from config.yaml

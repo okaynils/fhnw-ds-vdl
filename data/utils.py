@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import Subset
 import numpy as np
 
@@ -39,3 +40,10 @@ def split_dataset(dataset, train_ratio=0.7, val_ratio=0.2, test_ratio=0.1, rando
     test_dataset = Subset(dataset, test_indices)
     
     return train_dataset, val_dataset, test_dataset
+
+def unnormalize(img, mean, std):
+    mean = torch.tensor(mean).view(-1, 1, 1)  # Reshape to [C, 1, 1]
+    std = torch.tensor(std).view(-1, 1, 1)    # Reshape to [C, 1, 1]
+    img = std * img + mean
+    img = torch.clip(img, 0, 1)
+    return img

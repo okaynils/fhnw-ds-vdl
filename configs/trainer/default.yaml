@@ -1,0 +1,23 @@
+# configs/trainer/default.yaml
+
+epochs: 5000
+run_name: "Attention_UNet_Overfit"
+project_name: "vdl"
+save_dir: "models"
+
+sample_images_every: 500
+ema_decay: 0.995
+
+# You can also store diffusion hyperparams here 
+# if you want them separate from the model.
+diffusion:
+  noise_steps: 1000
+  beta_start: 0.0001
+  beta_end: 0.002
+  img_size: 64
+  device: ${device}
+
+# LR scheduler config
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: ${trainer.epochs}

@@ -1,0 +1,7 @@
+[2024-12-26 13:51:50,572][trainer][INFO] - Epoch 1/1
+[2024-12-26 13:53:17,430][trainer][INFO] - Train Loss: 0.6426, Val Loss: 0.3788
+[2024-12-26 13:53:17,585][root][INFO] - Sampling 4 new images....
+[2024-12-26 13:53:59,364][root][INFO] - Sampling 4 new images....
+[2024-12-26 13:54:44,837][trainer][INFO] - FID: 16079197038712743635632292626432.0000, PSNR: 6.6797
+[2024-12-26 13:54:47,644][trainer][INFO] - Models saved to models with val_loss 0.3788
+[2024-12-26 13:54:56,421][trainer][INFO] - Test Loss: 0.3371

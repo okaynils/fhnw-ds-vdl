@@ -7,6 +7,8 @@ from tqdm import tqdm
 from torch import optim
 import logging
 
+logging.basicConfig(format="%(asctime)s - %(levelname)s: %(message)s", level=logging.INFO, datefmt="%I:%M:%S")
+
 class Diffusion:
     def __init__(self, noise_steps=1000, beta_start=1e-4, beta_end=0.02, img_size=64, device="cuda"):
         self.noise_steps = noise_steps
@@ -33,7 +35,7 @@ class Diffusion:
         return torch.randint(low=1, high=self.noise_steps, size=(n,))
 
     def sample(self, model, n, class_vectors=None, depth_vectors=None, cfg_scale=0):
-        logging.info(f"Sampling {n} new images....")
+        logging.info(f"Sampling {n} new images from {model.__class__.__name__}...")
         model.eval()
 
         with torch.no_grad():
@@ -56,6 +58,4 @@ class Diffusion:
                 x = 1 / torch.sqrt(alpha) * (x - ((1 - alpha) / (torch.sqrt(1 - alpha_hat))) * predicted_noise) + torch.sqrt(beta) * noise
         
         model.train()
-        x = (x.clamp(-1, 1) + 1) / 2
-        x = (x * 255).type(torch.uint8)
         return x

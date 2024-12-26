@@ -1,80 +1,124 @@
 import os
-
-import hydra
-from trainer import Trainer
-from omegaconf import DictConfig, OmegaConf
-from torch.utils.data import DataLoader
-from data import NYUDepthV2, split_dataset
 import torch
-import torch.nn as nn
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
-import logging
+from trainer import Trainer
+from data.nyuv2 import NYUDepthV2
+from data.utils import split_dataset
+from torchvision import transforms
+from torch.utils.data import DataLoader
+from diffusion import Diffusion
 
-logger = logging.getLogger(__name__)
-
-@hydra.main(config_path="configs", config_name="config")
+@hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
-    logger.info(f"Starting run: {cfg.run_name}")
-    os.chdir(hydra.utils.get_original_cwd())
-    logger.info(OmegaConf.to_yaml(cfg))
-    
-    
+    """
+    Main training script that gets called by Hydra.
+    Usage example:
+      python train.py trainer.epochs=200 optimizer.lr=2e-5
+    """
 
-    train_loader = DataLoader(train_dataset, batch_size=cfg.dataset.batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=cfg.dataset.batch_size)
-    test_loader = DataLoader(test_dataset, batch_size=cfg.dataset.batch_size)
+    print("=== CONFIGS ===")
+    print(OmegaConf.to_yaml(cfg))
 
-    class_weights_file = cfg.dataset.class_weights_file
-    num_classes = cfg.model.num_classes
-    class_weights = None
+    torch.manual_seed(cfg.seed)
 
-    if os.path.exists(class_weights_file):
-        logger.info(f"Loading class weights from {class_weights_file}")
-        class_weights = torch.load(class_weights_file, map_location=cfg.device)
-    else:
-        logger.info("Calculating class weights...")
-        all_masks = [sample[1] for sample in train_dataset]
+    mean = cfg.dataset.mean
+    std = cfg.dataset.std
 
-        flat_labels = np.concatenate([np.array(mask).flatten() for mask in all_masks])
+    image_t = transforms.Compose([
+        transforms.CenterCrop(400),
+        transforms.Resize(cfg.trainer.diffusion.img_size),  # e.g. 64
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std)
+    ])
+    seg_t = transforms.Compose([
+        transforms.CenterCrop(400),
+        transforms.Resize(cfg.trainer.diffusion.img_size),
+        transforms.ToTensor()
+    ])
+    depth_t = transforms.Compose([
+        transforms.CenterCrop(400),
+        transforms.Resize(cfg.trainer.diffusion.img_size),
+        transforms.ToTensor()
+    ])
 
-        classes = list(range(0, 5))
-        classes.append(255)
-
-        class_weights = torch.tensor(
-            compute_class_weight("balanced", classes=np.array(classes), y=flat_labels)[:-1], dtype=torch.float32, device=cfg.device
-        )
-        
-        torch.save(class_weights, class_weights_file)
-        logger.info(f"Class weights saved to {class_weights_file}")
-
-    model = hydra.utils.instantiate(cfg.model)
-    optimizer = hydra.utils.instantiate(cfg.optimizer, params=model.parameters())
-    
-    if cfg.criterion._target_ == 'torch.nn.CrossEntropyLoss':
-        criterion = nn.CrossEntropyLoss(ignore_index=255, weight=class_weights)
-    if cfg.criterion._target_ == 'core.FocalLoss':
-        criterion = FocalLoss(gamma=cfg.criterion.gamma, weights=class_weights, ignore_index=255)
-
-    logger.info(f'--- Model Configuration of {cfg.model._target_} ---')
-    logger.info(model)
-    logger.info(f'Total Parameters: {sum(p.numel() for p in model.parameters())}')
-    
-    trainer = Trainer(
-        model=model,
-        criterion=criterion,
-        optimizer=optimizer,
-        epochs=cfg.epochs,
-        seed=cfg.seed,
-        device=cfg.device,
-        verbose=cfg.verbose,
-        run_name=cfg.run_name,
-        early_stopping_patience=cfg.trainer.early_stopping_patience,
-        n_classes=cfg.model.num_classes
+    dataset = NYUDepthV2(
+        root=cfg.dataset.root,
+        download=cfg.dataset.download,
+        preload=cfg.dataset.preload,
+        image_transform=image_t,
+        seg_transform=seg_t,
+        depth_transform=depth_t,
+        n_classes=cfg.dataset.n_classes,
+        filtered_classes=cfg.dataset.filtered_classes
     )
 
-    trainer.run(train_loader, val_loader)
+    # If you want a smaller dataset (for debugging):
+    # dataset = dataset[:24]  # or pass this as an override
+
+    train_ratio = cfg.dataset.train_ratio
+    val_ratio = cfg.dataset.val_ratio
+    test_ratio = cfg.dataset.test_ratio
+    train_dataset, val_dataset, test_dataset = split_dataset(
+        dataset, 
+        train_ratio=train_ratio, 
+        val_ratio=val_ratio, 
+        test_ratio=test_ratio,
+        random_seed=cfg.seed
+    )
+
+    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
+    val_loader   = DataLoader(val_dataset,   batch_size=4, shuffle=False)
+    test_loader  = DataLoader(test_dataset,  batch_size=4, shuffle=False)
+
+    # 3) Instantiate the model via Hydra
+    #    We use hydra.utils.instantiate for automatic object instantiation
+    from hydra.utils import instantiate
+    model = instantiate(cfg.model)  # e.g. UNet_Attn(num_classes=18, device='cuda')
+    model.to(cfg.device)
+
+    # 4) Instantiate the diffusion
+    diffusion_params = cfg.trainer.diffusion
+    diffusion = Diffusion(
+        noise_steps=diffusion_params.noise_steps,
+        beta_start=diffusion_params.beta_start,
+        beta_end=diffusion_params.beta_end,
+        img_size=diffusion_params.img_size,
+        device=diffusion_params.device
+    )
+
+    # 5) Build the optimizer & scheduler from the config
+    #    We pass model.parameters() as the first argument.
+    optimizer = instantiate(cfg.optimizer, params=model.parameters())
+    scheduler = None
+    if cfg.trainer.scheduler is not None:
+        scheduler = instantiate(cfg.trainer.scheduler, optimizer=optimizer)
+
+    # 6) Initialize the trainer
+    trainer = Trainer(
+        model=model,
+        diffusion=diffusion,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        epochs=cfg.trainer.epochs,
+        device=cfg.device,
+        train_dataloader=train_loader,
+        val_dataloader=val_loader,
+        run_name=cfg.trainer.run_name,
+        project_name=cfg.trainer.project_name,
+        save_dir=cfg.trainer.save_dir,
+        ema_decay=cfg.trainer.ema_decay,
+        sample_images_every=cfg.trainer.sample_images_every,
+        resolved_names=getattr(dataset, "resolved_names", None),
+        rgb_mean=mean,
+        rgb_std=std
+    )
+
+    trainer.run()
+
     trainer.test(test_loader)
+
 
 if __name__ == "__main__":
     main()
-    
