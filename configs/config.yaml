@@ -5,6 +5,7 @@ defaults:
   - model: unet_attn     # base model config
   - optimizer: adamw     # base optimizer
   - trainer: default     # default trainer settings
+  - experiment: unet_baseline
 
 # Other global configs (if you wish)
 # E.g. seed, device, or anything else you want globally

@@ -1,11 +1,11 @@
 # configs/trainer/default.yaml
 
-epochs: 5000
-run_name: "Attention_UNet_Overfit"
+epochs: 1000
 project_name: "vdl"
 save_dir: "models"
+run_name: "default_run"
 
-sample_images_every: 500
+sample_images_every: 100
 ema_decay: 0.995
 
 # You can also store diffusion hyperparams here 

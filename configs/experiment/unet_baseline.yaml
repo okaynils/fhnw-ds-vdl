@@ -1,0 +1,12 @@
+# @package _global_
+
+_base_: ../config.yaml
+
+experiment_name: "unet_baseline"
+
+model:
+  _target_: core.UNet_Baseline
+  num_classes: 18
+
+trainer:
+  run_name: "unet_baseline"
