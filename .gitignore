@@ -5,3 +5,4 @@ results/*.png
 models/*.pth
 wandb/*
 old.ipynb
+outputs/*
