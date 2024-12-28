@@ -25,18 +25,24 @@ class SelfAttention(nn.Module):
         return attention_value.swapaxes(2, 1).view(-1, self.channels, self.size, self.size)
 
 class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels, mid_channels=None, residual=False):
+    def __init__(self, in_channels, out_channels, mid_channels=None, residual=False, dropout_prob=0.0):
         super().__init__()
         self.residual = residual
         if not mid_channels:
             mid_channels = out_channels
-        self.double_conv = nn.Sequential(
+
+        layers = [
             nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False),
             nn.GroupNorm(1, mid_channels),
             nn.GELU(),
             nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False),
             nn.GroupNorm(1, out_channels),
-        )
+        ]
+
+        if dropout_prob > 0:
+            layers.insert(3, nn.Dropout(dropout_prob))  # Add dropout after activation
+
+        self.double_conv = nn.Sequential(*layers)
 
     def forward(self, x):
         if self.residual:
@@ -44,14 +50,13 @@ class DoubleConv(nn.Module):
         else:
             return self.double_conv(x)
 
-
 class Down(nn.Module):
-    def __init__(self, in_channels, out_channels, emb_dim=256):
+    def __init__(self, in_channels, out_channels, emb_dim=256, dropout_prob=0.0):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
-            DoubleConv(in_channels, in_channels, residual=True),
-            DoubleConv(in_channels, out_channels),
+            DoubleConv(in_channels, in_channels, residual=True, dropout_prob=dropout_prob),
+            DoubleConv(in_channels, out_channels, dropout_prob=dropout_prob),
         )
 
         self.emb_layer = nn.Sequential(
@@ -67,15 +72,14 @@ class Down(nn.Module):
         emb = self.emb_layer(t)[:, :, None, None].repeat(1, 1, x.shape[-2], x.shape[-1])
         return x + emb
 
-
 class Up(nn.Module):
-    def __init__(self, in_channels, out_channels, emb_dim=256):
+    def __init__(self, in_channels, out_channels, emb_dim=256, dropout_prob=0.0):
         super().__init__()
 
         self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
         self.conv = nn.Sequential(
-            DoubleConv(in_channels, in_channels, residual=True),
-            DoubleConv(in_channels, out_channels, in_channels // 2),
+            DoubleConv(in_channels, in_channels, residual=True, dropout_prob=dropout_prob),
+            DoubleConv(in_channels, out_channels, in_channels // 2, dropout_prob=dropout_prob),
         )
 
         self.emb_layer = nn.Sequential(

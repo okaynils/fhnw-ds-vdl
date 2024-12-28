@@ -78,6 +78,9 @@ def main(cfg: DictConfig):
     model = instantiate(cfg.model)  # e.g. UNet_Attn(num_classes=18, device='cuda')
     model.to(cfg.device)
 
+    print("=== MODEL ===")
+    print(model)
+
     # 4) Instantiate the diffusion
     diffusion_params = cfg.trainer.diffusion
     diffusion = Diffusion(

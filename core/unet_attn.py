@@ -5,27 +5,29 @@ import torch.nn.functional as F
 from core.modules import DoubleConv, Down, Up, SelfAttention
 
 class UNet_Attn(nn.Module):
-    def __init__(self, c_in=3, c_out=3, time_dim=256, num_classes=None, device="cuda"):
+    def __init__(self, c_in=3, c_out=3, time_dim=256, num_classes=None, device="cuda", dropout_prob=0.0):
         super().__init__()
         self.device = device
         self.time_dim = time_dim
-        self.inc = DoubleConv(c_in, 64)
-        self.down1 = Down(64, 128)
+        self.dropout_prob = dropout_prob
+
+        self.inc = DoubleConv(c_in, 64, dropout_prob=dropout_prob)
+        self.down1 = Down(64, 128, dropout_prob=dropout_prob)
         self.sa1 = SelfAttention(128, 32)
-        self.down2 = Down(128, 256)
+        self.down2 = Down(128, 256, dropout_prob=dropout_prob)
         self.sa2 = SelfAttention(256, 16)
-        self.down3 = Down(256, 256)
+        self.down3 = Down(256, 256, dropout_prob=dropout_prob)
         self.sa3 = SelfAttention(256, 8)
 
-        self.bot1 = DoubleConv(256, 512)
-        self.bot2 = DoubleConv(512, 512)
-        self.bot3 = DoubleConv(512, 256)
+        self.bot1 = DoubleConv(256, 512, dropout_prob=dropout_prob)
+        self.bot2 = DoubleConv(512, 512, dropout_prob=dropout_prob)
+        self.bot3 = DoubleConv(512, 256, dropout_prob=dropout_prob)
 
-        self.up1 = Up(512, 128)
+        self.up1 = Up(512, 128, dropout_prob=dropout_prob)
         self.sa4 = SelfAttention(128, 16)
-        self.up2 = Up(256, 64)
+        self.up2 = Up(256, 64, dropout_prob=dropout_prob)
         self.sa5 = SelfAttention(64, 32)
-        self.up3 = Up(128, 64)
+        self.up3 = Up(128, 64, dropout_prob=dropout_prob)
         self.sa6 = SelfAttention(64, 64)
         self.outc = nn.Conv2d(64, c_out, kernel_size=1)
 
