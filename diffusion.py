@@ -34,7 +34,7 @@ class Diffusion:
     def sample_timesteps(self, n):
         return torch.randint(low=1, high=self.noise_steps, size=(n,))
 
-    def sample(self, model, n, class_vectors=None, depth_vectors=None, cfg_scale=0):
+    def sample(self, model, n, class_vectors=None, depth_vectors=None):
         logging.info(f"Sampling {n} new images from {model.__class__.__name__}...")
         model.eval()
 

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+REMOTE_USER="n.fahrni"
+REMOTE_HOST="slurmlogin.cs.technik.fhnw.ch"
+REMOTE_DIR="~/classes/vdl"
+LOCAL_DIR="."
+
+rsync -av --progress --list-only --include='models/' --exclude='*' "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR" "$LOCAL_DIR"
+
+echo "Download completed! Remote directory '$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR' downloaded to '$LOCAL_DIR'."
