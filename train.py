@@ -1,6 +1,7 @@
 import os
 import torch
 import hydra
+from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 
 from trainer import Trainer
@@ -28,15 +29,17 @@ def main(cfg: DictConfig):
 
     image_t = transforms.Compose([
         transforms.CenterCrop(400),
-        transforms.Resize(cfg.trainer.diffusion.img_size),  # e.g. 64
+        transforms.Resize(cfg.trainer.diffusion.img_size),
         transforms.ToTensor(),
         transforms.Normalize(mean, std)
     ])
+
     seg_t = transforms.Compose([
         transforms.CenterCrop(400),
         transforms.Resize(cfg.trainer.diffusion.img_size),
         transforms.ToTensor()
     ])
+
     depth_t = transforms.Compose([
         transforms.CenterCrop(400),
         transforms.Resize(cfg.trainer.diffusion.img_size),
@@ -54,9 +57,6 @@ def main(cfg: DictConfig):
         filtered_classes=cfg.dataset.filtered_classes
     )
 
-    # If you want a smaller dataset (for debugging):
-    # dataset = dataset[:24]  # or pass this as an override
-
     train_ratio = cfg.dataset.train_ratio
     val_ratio = cfg.dataset.val_ratio
     test_ratio = cfg.dataset.test_ratio
@@ -72,16 +72,13 @@ def main(cfg: DictConfig):
     val_loader   = DataLoader(val_dataset,   batch_size=4, shuffle=False)
     test_loader  = DataLoader(test_dataset,  batch_size=4, shuffle=False)
 
-    # 3) Instantiate the model via Hydra
-    #    We use hydra.utils.instantiate for automatic object instantiation
-    from hydra.utils import instantiate
-    model = instantiate(cfg.model)  # e.g. UNet_Attn(num_classes=18, device='cuda')
+    
+    model = instantiate(cfg.model)
     model.to(cfg.device)
 
     print("=== MODEL ===")
     print(model)
 
-    # 4) Instantiate the diffusion
     diffusion_params = cfg.trainer.diffusion
     diffusion = Diffusion(
         noise_steps=diffusion_params.noise_steps,
@@ -91,14 +88,11 @@ def main(cfg: DictConfig):
         device=diffusion_params.device
     )
 
-    # 5) Build the optimizer & scheduler from the config
-    #    We pass model.parameters() as the first argument.
     optimizer = instantiate(cfg.optimizer, params=model.parameters())
     scheduler = None
     if cfg.trainer.scheduler is not None:
         scheduler = instantiate(cfg.trainer.scheduler, optimizer=optimizer)
 
-    # 6) Initialize the trainer
     trainer = Trainer(
         model=model,
         diffusion=diffusion,
