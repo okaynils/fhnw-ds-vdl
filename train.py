@@ -3,6 +3,7 @@ import torch
 import hydra
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
+import logging
 
 from trainer import Trainer
 from data.nyuv2 import NYUDepthV2
@@ -10,6 +11,8 @@ from data.utils import split_dataset
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from diffusion import Diffusion
+
+logger = logging.getLogger(__name__)
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
@@ -19,8 +22,8 @@ def main(cfg: DictConfig):
       python train.py trainer.epochs=200 optimizer.lr=2e-5
     """
 
-    print("=== CONFIGS ===")
-    print(OmegaConf.to_yaml(cfg))
+    logger.info("=== CONFIGS ===")
+    logger.info(OmegaConf.to_yaml(cfg))
 
     torch.manual_seed(cfg.seed)
 
@@ -56,28 +59,39 @@ def main(cfg: DictConfig):
         n_classes=cfg.dataset.n_classes,
         filtered_classes=cfg.dataset.filtered_classes
     )
-
+    
     train_ratio = cfg.dataset.train_ratio
     val_ratio = cfg.dataset.val_ratio
     test_ratio = cfg.dataset.test_ratio
-    train_dataset, val_dataset, test_dataset = split_dataset(
-        dataset, 
-        train_ratio=train_ratio, 
-        val_ratio=val_ratio, 
-        test_ratio=test_ratio,
-        random_seed=cfg.seed
-    )
+    
+    if cfg.dataset.overfit_test == True:
+        logger.info("Dataset overfitting mode enabled. Using only 24 samples.")
+      
+        train_dataset, val_dataset, test_dataset = split_dataset(
+            dataset[:24], 
+            train_ratio=train_ratio, 
+            val_ratio=val_ratio, 
+            test_ratio=test_ratio,
+            random_seed=cfg.seed
+        )
+    else:
+        train_dataset, val_dataset, test_dataset = split_dataset(
+            dataset,
+            train_ratio=train_ratio, 
+            val_ratio=val_ratio, 
+            test_ratio=test_ratio,
+            random_seed=cfg.seed
+        )
 
     train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
     val_loader   = DataLoader(val_dataset,   batch_size=4, shuffle=False)
     test_loader  = DataLoader(test_dataset,  batch_size=4, shuffle=False)
 
-    
     model = instantiate(cfg.model)
     model.to(cfg.device)
 
-    print("=== MODEL ===")
-    print(model)
+    logger.info("=== MODEL ===")
+    logger.info(model)
 
     diffusion_params = cfg.trainer.diffusion
     diffusion = Diffusion(

@@ -1,0 +1,5 @@
+# configs/model/unet.yaml
+
+_target_: core.UNet
+num_classes: 18
+device: ${device}

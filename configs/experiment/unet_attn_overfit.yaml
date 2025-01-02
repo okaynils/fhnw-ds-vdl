@@ -1,0 +1,16 @@
+# @package _global_
+
+_base_: ../config.yaml
+
+experiment_name: "overfit_unet_attn"
+
+model:
+  _target_: core.UNet_Attn
+  num_classes: 18
+
+trainer:
+  run_name: "overfit_unet_attn"
+  epochs: 1000
+
+dataset:
+  overfit_test: true
