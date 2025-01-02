@@ -56,29 +56,22 @@ class Trainer:
             class_vectors = class_vectors.to(self.device)
             depth_vectors = depth_vectors.to(self.device)
 
-            # Sample time steps
             t = self.diffusion.sample_timesteps(images.size(0)).to(self.device)
 
-            # Add noise to images
             x_t, noise = self.diffusion.noise_images(images, t)
 
-            # Predict noise using the model
             predicted_noise = self.model(x_t, t, class_vectors, depth_vectors)
 
-            # Compute loss
             loss = F.mse_loss(predicted_noise, noise)
 
-            # Backpropagation
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
 
-            # Update EMA model
             self.ema.step_ema(self.ema_model, self.model)
 
             epoch_loss += loss.item()
 
-        # Step the scheduler if it's provided
         if self.scheduler:
             self.scheduler.step()
 
@@ -112,7 +105,9 @@ class Trainer:
             model_name = f"{self.run_name}_{self.run_id}.pth"
             save_path = os.path.join(self.save_dir, model_name)
             torch.save(self.model.state_dict(), save_path)
-            torch.save(self.ema_model.state_dict(), save_path.replace(".pth", "_ema.pth"))
+            ema_model_name = f"{self.run_name}_ema_{self.run_id}.pth"
+            ema_save_path = os.path.join(self.save_dir, ema_model_name)
+            torch.save(self.ema_model.state_dict(), ema_save_path)
             logger.info(f"Models saved to {self.save_dir} with val_loss {val_loss:.4f}")
 
     def _plot_samples(self, n=5, n_present_classes=3, depth_lower=0.1, depth_upper=3.0):
