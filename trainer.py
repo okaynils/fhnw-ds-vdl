@@ -267,6 +267,9 @@ class Trainer:
 
     def run(self):
         for epoch in range(self.epochs):
+            if epoch % self.sample_images_every == 0:
+                self._validate_samples(num_samples=self.val_dataloader.batch_size, n_plot=10)
+
             logger.info(f"Epoch {epoch + 1}/{self.epochs}")
             
             current_lr = self.optimizer.param_groups[0]['lr']
@@ -281,8 +284,6 @@ class Trainer:
             
             logger.info(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
             
-            if epoch % self.sample_images_every == 0:
-                self._validate_samples(num_samples=self.val_dataloader.batch_size, n_plot=10)
 
             self._save_model(val_loss)
 
