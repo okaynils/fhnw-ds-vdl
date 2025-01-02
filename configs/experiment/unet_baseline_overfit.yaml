@@ -10,7 +10,7 @@ model:
 
 trainer:
   run_name: "overfit_unet_baseline"
-  epochs: 1000
+  epochs: 5000
 
 dataset:
   overfit_test: true
