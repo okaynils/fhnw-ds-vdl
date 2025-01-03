@@ -10,3 +10,5 @@ model:
 
 trainer:
   run_name: "unet_attn"
+  batch_size: 4
+  epochs: 500

@@ -1,0 +1,13 @@
+# @package _global_
+
+_base_: ../config.yaml
+
+experiment_name: "unet"
+
+model:
+  _target_: core.UNet
+  num_classes: 18
+
+trainer:
+  run_name: "unet"
+  epochs: 500

@@ -10,3 +10,4 @@ model:
 
 trainer:
   run_name: "unet_baseline"
+  epochs: 500
