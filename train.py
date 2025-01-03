@@ -83,9 +83,9 @@ def main(cfg: DictConfig):
             random_seed=cfg.seed
         )
 
-    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
-    val_loader   = DataLoader(val_dataset,   batch_size=4, shuffle=False)
-    test_loader  = DataLoader(test_dataset,  batch_size=4, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=cfg.trainer.batch_size, shuffle=True)
+    val_loader   = DataLoader(val_dataset,   batch_size=cfg.trainer.batch_size, shuffle=False)
+    test_loader  = DataLoader(test_dataset,  batch_size=cfg.trainer.batch_size, shuffle=False)
 
     model = instantiate(cfg.model)
     model.to(cfg.device)

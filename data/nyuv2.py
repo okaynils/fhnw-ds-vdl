@@ -121,7 +121,6 @@ class NYUDepthV2(Dataset):
                 if class_mask.sum() > 0:
                     depth_vector[shifted_cls] = depth[class_mask].mean()
         else:
-            # Filtered classes
             filtered_indices = [cls for cls in unique_classes if cls in self.filtered_classes]
             class_vector = np.zeros(len(self.filtered_classes), dtype=np.float32)
             depth_vector = np.zeros(len(self.filtered_classes), dtype=np.float32)
@@ -187,7 +186,6 @@ def unpack_names(file, names_dataset, filtered_classes=None):
             resolved_names.append(str(ascii_array))
 
     if filtered_classes is not None:
-        # select resolved names based on filtered classes
         resolved_names = [resolved_names[i-1] for i in filtered_classes]
     
     return np.array(resolved_names)

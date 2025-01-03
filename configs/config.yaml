@@ -1,13 +1,11 @@
 # configs/config.yaml
 
 defaults:
-  - dataset: nyuv2       # base dataset config
-  - model: unet_attn     # base model config
-  - optimizer: adamw     # base optimizer
-  - trainer: default     # default trainer settings
+  - dataset: nyuv2
+  - model: unet_attn
+  - optimizer: adamw
+  - trainer: default
   - experiment: unet_baseline
 
-# Other global configs (if you wish)
-# E.g. seed, device, or anything else you want globally
 seed: 42
 device: "cuda"

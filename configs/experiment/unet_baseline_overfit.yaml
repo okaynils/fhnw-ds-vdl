@@ -8,9 +8,14 @@ model:
   _target_: core.UNet_Baseline
   num_classes: 18
 
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 1e-5
+
 trainer:
   run_name: "overfit_unet_baseline"
   epochs: 5000
+  batch_size: 4
 
 dataset:
   overfit_test: true
