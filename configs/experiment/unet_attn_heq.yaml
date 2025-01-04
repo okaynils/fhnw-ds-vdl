@@ -2,14 +2,14 @@
 
 _base_: ../config.yaml
 
-experiment_name: "unet_attn"
+experiment_name: "unet_attn_heq"
 
 model:
   _target_: core.UNet_Attn
   num_classes: 18
 
 trainer:
-  run_name: "unet_attn"
+  run_name: "unet_attn_heq"
   batch_size: 4
   epochs: 500
 

@@ -2,14 +2,14 @@
 
 _base_: ../config.yaml
 
-experiment_name: "unet"
+experiment_name: "unet_heq"
 
 model:
   _target_: core.UNet
   num_classes: 18
 
 trainer:
-  run_name: "unet"
+  run_name: "unet_heq"
   epochs: 500
 
 dataset:
