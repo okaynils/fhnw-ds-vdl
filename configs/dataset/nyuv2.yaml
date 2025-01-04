@@ -5,19 +5,13 @@ download: true
 preload: false
 filtered_classes: [5, 11, 21, 26, 2, 3, 7, 64, 144, 19, 119, 157, 28, 55, 15, 59, 4, 83]
 overfit_test: false
-
-# You can define transforms in code, or fully in Hydra. 
-# A common approach is to define them in code, 
-# but store just the hyperparams (like mean/std) here, 
-# for example:
+histogram_eq: false
 
 mean: [0.45751964, 0.38052973, 0.35920617]
 std:  [0.26278369, 0.26265677, 0.27553079]
 
-# Number of total classes after filtering 
 n_classes: 18
 
-# For demonstration:
 train_ratio: 0.7
 val_ratio: 0.2
 test_ratio: 0.1

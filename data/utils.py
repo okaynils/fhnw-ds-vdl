@@ -47,3 +47,11 @@ def unnormalize(img, mean, std):
     img = std * img + mean
     img = torch.clip(img, 0, 1)
     return img
+
+from PIL import ImageOps, Image
+
+class HistogramEqualization:
+    def __call__(self, img):
+        if not isinstance(img, Image.Image):
+            raise ValueError("Input image must be a PIL image")
+        return ImageOps.equalize(img)

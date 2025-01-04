@@ -7,7 +7,7 @@ import logging
 
 from trainer import Trainer
 from data.nyuv2 import NYUDepthV2
-from data.utils import split_dataset
+from data.utils import split_dataset, HistogramEqualization
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from diffusion import Diffusion
@@ -32,6 +32,7 @@ def main(cfg: DictConfig):
 
     image_t = transforms.Compose([
         transforms.CenterCrop(400),
+        HistogramEqualization() if cfg.dataset.histogram_eq else transforms.Lambda(lambda x: x),
         transforms.Resize(cfg.trainer.diffusion.img_size),
         transforms.ToTensor(),
         transforms.Normalize(mean, std)
