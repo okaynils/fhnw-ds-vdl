@@ -1,0 +1,17 @@
+# @package _global_
+
+_base_: ../config.yaml
+
+experiment_name: "unet_attn_heq_dropout_0.3"
+
+model:
+  _target_: core.UNet_Attn
+  num_classes: 18
+  dropout_prob: 0.3
+
+trainer:
+  run_name: "unet_attn_heq_dropout_0.3"
+  epochs: 500
+
+dataset:
+  histogram_eq: true
