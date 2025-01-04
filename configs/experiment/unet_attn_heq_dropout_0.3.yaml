@@ -11,6 +11,7 @@ model:
 
 trainer:
   run_name: "unet_attn_heq_dropout_0.3"
+  batch_size: 4
   epochs: 500
 
 dataset:
