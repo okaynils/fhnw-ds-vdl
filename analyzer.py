@@ -60,8 +60,8 @@ class Analyzer:
 
         fig, axes = plt.subplots(1, 3, figsize=(20, 6))
 
-        axes[0].plot(train_loss, label='Train Loss', marker='o')
-        axes[0].plot(val_loss, label='Validation Loss', marker='x')
+        axes[0].plot(train_loss, label='Train Loss', zorder=2)
+        axes[0].plot(val_loss, label='Validation Loss', zorder=1)
         axes[0].set_title('Training and Validation Loss')
         axes[0].set_xlabel('Epoch')
         axes[0].set_ylabel('MSE Loss')
@@ -156,6 +156,6 @@ class Analyzer:
             run = api.run(f"{self.entity_name}/{self.project_name}/{run_id}")
             self.run_name = run.name
             self.elapsed_time = run.summary.get('_runtime', None)
-            self.history = run.history(pandas=False)
+            self.history = run.scan_history()
         except wandb.errors.CommError as e:
             raise ValueError(f"Error fetching run: {e}")

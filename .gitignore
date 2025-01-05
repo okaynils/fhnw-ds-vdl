@@ -6,3 +6,4 @@ models/*.pth
 wandb/*
 old.ipynb
 outputs/*
+media/*
