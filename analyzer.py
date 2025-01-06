@@ -50,8 +50,7 @@ class Analyzer:
         print(self.model)
         
     def plot(self, run_id: str):
-        if self.history is None:
-            self._fetch_data(run_id)
+        self._fetch_data(run_id)
         
         train_loss = [entry['train_loss'] for entry in self.history if entry['train_loss'] is not None]
         val_loss = [entry['val_loss'] for entry in self.history if entry['val_loss'] is not None]
