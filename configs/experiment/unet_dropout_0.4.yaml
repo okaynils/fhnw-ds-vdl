@@ -2,7 +2,7 @@
 
 _base_: ../config.yaml
 
-experiment_name: "unet_attn_dropout_0.4"
+experiment_name: "unet_dropout_0.4"
 
 model:
   _target_: core.UNet
@@ -10,5 +10,5 @@ model:
   dropout_prob: 0.4
 
 trainer:
-  run_name: "unet_attn_dropout_0.4"
+  run_name: "unet_dropout_0.4"
   epochs: 500

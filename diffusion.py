@@ -34,12 +34,13 @@ class Diffusion:
     def sample_timesteps(self, n):
         return torch.randint(low=1, high=self.noise_steps, size=(n,))
 
-    def sample(self, model, n, class_vectors=None, depth_vectors=None):
+    def sample(self, model, n, x: torch.Tensor, class_vectors=None, depth_vectors=None):
         logging.info(f"Sampling {n} new images from {model.__class__.__name__}...")
         model.eval()
 
         with torch.no_grad():
-            x = torch.randn((n, 3, self.img_size, self.img_size)).to(self.device)
+            if x is None:
+                x = torch.randn((n, 3, self.img_size, self.img_size)).to(self.device)
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
                 t = (torch.ones(n) * i).long().to(self.device)
                 

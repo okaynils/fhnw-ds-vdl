@@ -124,8 +124,10 @@ class Trainer:
             labels = [(self.resolved_names[idx], depth_vectors[i, idx].item()) for idx in indices]
             class_labels.append(labels)
 
-        default_sampled_images = self.diffusion.sample(self.model, n=n, class_vectors=class_vectors, depth_vectors=depth_vectors)
-        ema_sampled_images = self.diffusion.sample(self.ema_model, n=n, class_vectors=class_vectors, depth_vectors=depth_vectors)
+        x = torch.randn((n, 3, 64, 64)).to(self.device)
+
+        default_sampled_images = self.diffusion.sample(model=self.model, n=n, x=x, class_vectors=class_vectors, depth_vectors=depth_vectors)
+        ema_sampled_images = self.diffusion.sample(model=self.ema_model, n=n, x=x, class_vectors=class_vectors, depth_vectors=depth_vectors)
         
         fig_default, axes_default = plt.subplots(1, n, figsize=(n * 3, 3))
         for i, ax in enumerate(axes_default):

@@ -72,6 +72,7 @@ class Analyzer:
         axes[1].set_title('FID Metric')
         axes[1].set_xlabel('Epoch')
         axes[1].set_ylabel('FID Value')
+        axes[1].set_yscale('log')  # Added log scaling on y-axis
         axes[1].legend()
         axes[1].grid(True)
 
@@ -98,8 +99,10 @@ class Analyzer:
         if len(depth_vects) != n_samples:
             depth_vects = depth_vects.repeat(n_samples, 1)
 
-        default_sampled_images = self.diffusion.sample(self.model, n_samples, class_vects.to(self.device), depth_vects.to(self.device))
-        ema_sampled_images = self.diffusion.sample(self.ema_model, n_samples, class_vects.to(self.device), depth_vects.to(self.device))
+        x = torch.randn((n_samples, 3, 64, 64)).to(self.device)
+
+        default_sampled_images = self.diffusion.sample(model=self.model, n=n_samples, x=x, class_vectors=class_vects.to(self.device), depth_vectors=depth_vects.to(self.device))
+        ema_sampled_images = self.diffusion.sample(model=self.ema_model, n=n_samples, x=x, class_vectors=class_vects.to(self.device), depth_vectors=depth_vects.to(self.device))
 
         fig1, axes1 = plt.subplots(1, n_samples, figsize=(n_samples * 2, 2.5))
         fig1.suptitle("Default Model Samples", fontsize=16)
