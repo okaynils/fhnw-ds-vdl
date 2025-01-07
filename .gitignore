@@ -7,3 +7,4 @@ wandb/*
 old.ipynb
 outputs/*
 media/*
+.DS_Store
