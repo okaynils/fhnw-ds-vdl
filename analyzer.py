@@ -72,7 +72,7 @@ class Analyzer:
         axes[1].set_title('FID Metric')
         axes[1].set_xlabel('Epoch')
         axes[1].set_ylabel('FID Value')
-        axes[1].set_yscale('log')  # Added log scaling on y-axis
+        axes[1].set_yscale('log')
         axes[1].legend()
         axes[1].grid(True)
 
@@ -88,9 +88,9 @@ class Analyzer:
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         plt.show()
         
-    def sample_images(self, run_id: str, class_vects: torch.tensor, depth_vects: torch.tensor, n_samples: int = 5):
+    def sample_images(self, run_id: str, resolved_names, class_vects: torch.tensor, depth_vects: torch.tensor, n_samples: int = 5):
         self._load_model_weights(run_id)
-        
+
         dataset_config = OmegaConf.load('configs/dataset/nyuv2.yaml')
         mean, std = dataset_config.mean, dataset_config.std
 
@@ -104,26 +104,29 @@ class Analyzer:
         default_sampled_images = self.diffusion.sample(model=self.model, n=n_samples, x=x, class_vectors=class_vects.to(self.device), depth_vectors=depth_vects.to(self.device))
         ema_sampled_images = self.diffusion.sample(model=self.ema_model, n=n_samples, x=x, class_vectors=class_vects.to(self.device), depth_vectors=depth_vects.to(self.device))
 
-        fig1, axes1 = plt.subplots(1, n_samples, figsize=(n_samples * 2, 2.5))
-        fig1.suptitle("Default Model Samples", fontsize=16)
-        for i in range(n_samples):
-            ax = axes1[i]
-            ax.imshow(unnormalize(default_sampled_images[i].cpu(), mean, std).permute(1, 2, 0))
-            ax.axis("off")
+        def display_images(images, title, class_vects, depth_vects):
+            fig, axes = plt.subplots(1, n_samples, figsize=(n_samples * 3, 3))
+            fig.suptitle(title, fontsize=16)
 
-        plt.tight_layout(rect=[0, 0, 1, 0.9])
-        plt.show()
+            for i in range(n_samples):
+                ax = axes[i]
+                ax.imshow(unnormalize(images[i].cpu(), mean, std).permute(1, 2, 0))
 
-        # Second row subplot for EMA model samples
-        fig2, axes2 = plt.subplots(1, n_samples, figsize=(n_samples * 2, 2.5))
-        fig2.suptitle("EMA Model Samples", fontsize=16)
-        for i in range(n_samples):
-            ax = axes2[i]
-            ax.imshow(unnormalize(ema_sampled_images[i].cpu(), mean, std).permute(1, 2, 0))
-            ax.axis("off")
+                ax.tick_params(left=False, labelleft=False, bottom=True, labelbottom=True)
+                ax.set_xticks([])
+                ax.set_yticks([])
 
-        plt.tight_layout(rect=[0, 0, 1, 0.9])
-        plt.show()
+                present_classes = [resolved_names[j] for j in range(len(class_vects[i])) if class_vects[i][j] == 1]
+                depths = [depth_vects[i][j].item() for j in range(len(class_vects[i])) if class_vects[i][j] == 1]
+
+                label_text = "\n".join([f"{cls}: {depth:.2f}m" for cls, depth in zip(present_classes, depths)])
+                ax.set_xlabel(label_text, fontsize=8)
+
+            plt.subplots_adjust(bottom=0.25, top=0.85, wspace=0.3)
+            plt.show()
+
+        display_images(default_sampled_images, "Default Model Samples", class_vects, depth_vects)
+        display_images(ema_sampled_images, "EMA Model Samples", class_vects, depth_vects)
 
     def _get_model_path(self, run_id: str):
         print(f"\nSearching for model weights for run {run_id}...")

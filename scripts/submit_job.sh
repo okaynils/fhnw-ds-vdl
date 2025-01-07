@@ -12,7 +12,6 @@ if [ -z "$experiment" ]; then
   exit 1
 fi
 
-# Submit the job to Slurm
 sbatch \
   --time="$time" \
   --partition=performance \

@@ -16,26 +16,20 @@ def split_dataset(dataset, train_ratio=0.7, val_ratio=0.2, test_ratio=0.1, rando
     """
     assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-6, "Ratios must sum to 1."
 
-    # Set random seed for reproducibility
     np.random.seed(random_seed)
     
-    # Total size of the dataset
     total_size = len(dataset)
     indices = np.arange(total_size)
     
-    # Shuffle the indices
     np.random.shuffle(indices)
     
-    # Calculate split points
     train_split = int(train_ratio * total_size)
     val_split = train_split + int(val_ratio * total_size)
     
-    # Split the indices
     train_indices = indices[:train_split]
     val_indices = indices[train_split:val_split]
     test_indices = indices[val_split:]
     
-    # Create dataset subsets
     train_dataset = Subset(dataset, train_indices)
     val_dataset = Subset(dataset, val_indices)
     test_dataset = Subset(dataset, test_indices)

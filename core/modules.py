@@ -14,15 +14,12 @@ class SelfAttention(nn.Module):
             self.channels % num_heads == 0
         ), "Channels must be divisible by the number of heads."
 
-        # Learnable weights for query, key, and value
         self.q_proj = nn.Linear(channels, channels)
         self.k_proj = nn.Linear(channels, channels)
         self.v_proj = nn.Linear(channels, channels)
 
-        # Final output projection
         self.out_proj = nn.Linear(channels, channels)
 
-        # Layer norm and feed-forward network
         self.ln = nn.LayerNorm(channels)
         self.ff_self = nn.Sequential(
             nn.LayerNorm(channels),
@@ -32,39 +29,31 @@ class SelfAttention(nn.Module):
         )
 
     def forward(self, x):
-        # Reshape input from (B, C, H, W) to (B, N, C), where N = H * W
         B, C, H, W = x.shape
-        x = x.view(B, C, H * W).permute(0, 2, 1)  # Shape: (B, N, C)
+        x = x.view(B, C, H * W).permute(0, 2, 1)
 
-        # Apply layer norm
         x_ln = self.ln(x)
 
-        # Compute Q, K, V
-        Q = self.q_proj(x_ln)  # Shape: (B, N, C)
-        K = self.k_proj(x_ln)  # Shape: (B, N, C)
-        V = self.v_proj(x_ln)  # Shape: (B, N, C)
+        Q = self.q_proj(x_ln)
+        K = self.k_proj(x_ln)
+        V = self.v_proj(x_ln)
 
-        # Reshape for multi-head attention: (B, N, C) -> (B, num_heads, N, head_dim)
         Q = Q.view(B, -1, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
         K = K.view(B, -1, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
         V = V.view(B, -1, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
 
-        # Compute scaled dot-product attention
         scale = self.head_dim ** -0.5
-        attention_scores = torch.matmul(Q, K.transpose(-2, -1)) * scale  # Shape: (B, num_heads, N, N)
-        attention_weights = F.softmax(attention_scores, dim=-1)  # Shape: (B, num_heads, N, N)
-        attention_output = torch.matmul(attention_weights, V)  # Shape: (B, num_heads, N, head_dim)
+        attention_scores = torch.matmul(Q, K.transpose(-2, -1)) * scale
+        attention_weights = F.softmax(attention_scores, dim=-1)
+        attention_output = torch.matmul(attention_weights, V)
 
-        # Concatenate heads and project back to original dimensions
         attention_output = (
             attention_output.permute(0, 2, 1, 3).contiguous().view(B, -1, self.channels)
-        )  # Shape: (B, N, C)
-        attention_output = self.out_proj(attention_output)  # Shape: (B, N, C)
+        )
+        attention_output = self.out_proj(attention_output)
 
-        # Add residual connection
         attention_output = attention_output + x
 
-        # Apply feed-forward network and add another residual connection
         attention_output = self.ff_self(attention_output) + attention_output
 
         # Reshape back to (B, C, H, W)
@@ -86,7 +75,7 @@ class DoubleConv(nn.Module):
         ]
 
         if dropout_prob > 0:
-            layers.insert(3, nn.Dropout(dropout_prob))  # Add dropout after activation
+            layers.insert(3, nn.Dropout(dropout_prob))
 
         self.double_conv = nn.Sequential(*layers)
 

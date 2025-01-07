@@ -30,11 +30,9 @@ class Trainer:
         self.ema_decay = ema_decay
         self.resolved_names = resolved_names
 
-        # Initialize EMA
         self.ema = EMA(ema_decay)
         self.ema_model = copy.deepcopy(model).eval().requires_grad_(False)
 
-        # Initialize Weights & Biases
         wandb.init(project=self.project_name, name=self.run_name)
         self.run_id = wandb.run.id
         self.best_val_loss = float('inf')
@@ -44,7 +42,6 @@ class Trainer:
         self.rgb_mean = rgb_mean
         self.rgb_std = rgb_std
 
-        # Create a models directory if it doesn't exist
         os.makedirs(self.save_dir, exist_ok=True)
 
     def _train_epoch(self):
@@ -171,12 +168,10 @@ class Trainer:
                 class_vectors = class_vectors.to(self.device)
                 depth_vectors = depth_vectors.to(self.device)
 
-                # Collect real images
                 real_images_list.append(images)
                 if len(plot_real_images) < n_plot:
                     plot_real_images.append(images[:n_plot])
 
-                # Generate corresponding images using the default model
                 generated_images = self.diffusion.sample(self.model, n=images.size(0),
                                                           class_vectors=class_vectors,
                                                           depth_vectors=depth_vectors)
@@ -184,7 +179,6 @@ class Trainer:
                 if len(plot_generated_images) < n_plot:
                     plot_generated_images.append(generated_images[:n_plot])
 
-                # Generate corresponding images using the EMA model
                 ema_generated_images = self.diffusion.sample(self.ema_model, n=images.size(0),
                                                              class_vectors=class_vectors,
                                                              depth_vectors=depth_vectors)
@@ -192,29 +186,23 @@ class Trainer:
                 if len(plot_ema_generated_images) < n_plot:
                     plot_ema_generated_images.append(ema_generated_images[:n_plot])
 
-                # Compute PSNR for the batch
                 batch_psnr = calculate_psnr(images, generated_images)
                 psnr_values.append(batch_psnr)
 
                 if len(real_images_list) * images.size(0) >= num_samples:
                     break
 
-        # Concatenate collected images
         real_images = torch.cat(real_images_list, dim=0)[:num_samples]
         generated_images = torch.cat(generated_images_list, dim=0)[:num_samples]
         ema_generated_images = torch.cat(ema_generated_images_list, dim=0)[:num_samples]
 
-        # Compute FID
         fid_score = calculate_fid(real_images, generated_images, self.device)
 
-        # Average PSNR
         avg_psnr = sum(psnr_values) / len(psnr_values)
 
-        # Log metrics to WandB
         wandb.log({"FID": fid_score, "PSNR": avg_psnr})
         logger.info(f"FID: {fid_score:.4f}, PSNR: {avg_psnr:.4f}")
 
-        # Log sample images to WandB
         self._log_samples_to_wandb(torch.cat(plot_real_images, dim=0)[:n_plot],
                                    torch.cat(plot_generated_images, dim=0)[:n_plot],
                                    torch.cat(plot_ema_generated_images, dim=0)[:n_plot],
@@ -236,7 +224,6 @@ class Trainer:
         generated_images = unnormalize(generated_images.cpu(), mean=self.rgb_mean, std=self.rgb_std)
         ema_generated_images = unnormalize(ema_generated_images.cpu(), mean=self.rgb_mean, std=self.rgb_std)
         
-        # Add row labels on the left
         row_labels = ["Real Images", "Generated Images", "Generated Images (EMA)"]
         for row_idx, label in enumerate(row_labels):
             axes[row_idx][0].set_ylabel(label, fontsize=12, rotation=0, labelpad=50, ha='right', va='center')
@@ -259,7 +246,6 @@ class Trainer:
                     for idx in torch.where(class_vectors[i] == 1)[0].tolist()]
             ax.set_xlabel("\n".join(labels), fontsize=8)
 
-        # Adjust layout to make space for row labels and x-labels
         fig.subplots_adjust(hspace=0.5, wspace=0.3)
 
         fig.tight_layout()
