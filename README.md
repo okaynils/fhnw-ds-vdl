@@ -2,7 +2,7 @@
 
 This repository contains a PyTorch-based framework for training diffusion models, based on the original DDPM paper by Ho et al ([2020](https://arxiv.org/pdf/2006.11239)), that generate images **conditioned** on both semantic *class vectors* and *depth vectors*. The code is centered around the [**NYU Depth V2**](https://cs.nyu.edu/~fergus/datasets/nyu_depth_v2.html) dataset by Silberman et al ([2012](https://cs.nyu.edu/~fergus/datasets/indoor_seg_support.pdf)), where each sample includes an RGB image, a segmentation mask, and a depth map. The model takes in class vectors and depth vectors, then predicts the noise in a diffusion framework to reconstruct or generate new images.
 
-I have built this project during the fall semester of 2025 in the B.S. Data Science program at FHNW in the Advanced Deep Learning course (vdl).
+I have built this project during the fall semester of 2024 in the B.S. Data Science program at FHNW in the Advanced Deep Learning course (vdl).
 
 Below you will find an overview of the repository structure, how to set up and run the code, and how to customize experiments using Hydra.
 
