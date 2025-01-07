@@ -1,4 +1,4 @@
-# Diffusion-Based Depth-to-Image Generation
+# Advanced Deep Learning (vdl) Mini Challenge: DDPM + Conditional Diffuison on NYU Depth v2
 
 This repository contains a PyTorch-based framework for training diffusion models, based on the original DDPM paper by Ho et al ([2020](https://arxiv.org/pdf/2006.11239)), that generate images **conditioned** on both semantic *class vectors* and *depth vectors*. The code is centered around the [**NYU Depth V2**](https://cs.nyu.edu/~fergus/datasets/nyu_depth_v2.html) dataset by Silberman et al ([2012](https://cs.nyu.edu/~fergus/datasets/indoor_seg_support.pdf)), where each sample includes an RGB image, a segmentation mask, and a depth map. The model takes in class vectors and depth vectors, then predicts the noise in a diffusion framework to reconstruct or generate new images.
 
@@ -35,6 +35,7 @@ Below you will find an overview of the repository structure, how to set up and r
 ---
 
 ## Repository Structure
+```
 .
 ├── analyzer.py        # Tools for analyzing training runs, plotting metrics, sampling images
 ├── diffusion.py       # Core Diffusion class handling forward noise & reverse sampling
@@ -70,6 +71,7 @@ Below you will find an overview of the repository structure, how to set up and r
 │   └── upload.sh         # Syncs code to remote server
 │
 └── requirements.txt / environment.yml (not shown, assume your usual environment file)
+```
 
 ---
 
